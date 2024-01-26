@@ -10,6 +10,8 @@ import (
 	"github.com/cluttrdev/cli"
 )
 
+const version string = "v0.0.0+unknown"
+
 func main() {
 	if err := execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -35,20 +37,30 @@ func execute() error {
 }
 
 func configure() *cli.Command {
-	root := &cli.Command{
-		Name:       "hello",
-		ShortHelp:  "Say hello to the world.",
-		ShortUsage: "hello <name>",
-		Exec: func(ctx context.Context, args []string) error {
-			if len(args) < 1 {
-				return errors.New("not enough arguments")
-			} else if len(args) > 1 {
-				return errors.New("too many arguments")
-			}
+	out := os.Stdout
 
-			_, err := fmt.Printf("Hello, %s.\n", args[0])
-			return err
+	root := &cli.Command{
+		Name:       "version",
+		ShortUsage: "version <command>",
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
 		},
+	}
+
+	// default version info taken from BuildInfo
+	defaultCmd := cli.DefaultVersionCommand(out)
+	defaultCmd.Name = "default"
+	defaultCmd.ShortHelp = "Show default version information"
+
+	// custom version info based on BuildInfo but explicit version number
+	customInfo := cli.NewBuildInfo(version)
+	customCmd := cli.NewVersionCommand(customInfo, out)
+	customCmd.Name = "custom"
+	customCmd.ShortHelp = "Show custom version information"
+
+	root.Subcommands = []*cli.Command{
+		defaultCmd,
+		customCmd,
 	}
 
 	return root
