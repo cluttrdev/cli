@@ -11,6 +11,8 @@ import (
 type ParseOptions struct {
 	envVarEnabled bool
 	envVarPrefix  string
+
+	usageFunc func()
 }
 
 type ParseOption func(*ParseOptions) error
@@ -30,6 +32,13 @@ func WithEnvVarPrefix(prefix string) ParseOption {
 	}
 }
 
+func WithUsageFunc(usage func()) ParseOption {
+	return func(o *ParseOptions) error {
+		o.usageFunc = nil
+		return nil
+	}
+}
+
 func (cmd *Command) Parse(args []string, options ...ParseOption) error {
 	if cmd.Name == "" {
 		return errors.New("name is required")
@@ -38,11 +47,21 @@ func (cmd *Command) Parse(args []string, options ...ParseOption) error {
 		cmd.Flags = flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
 	}
 
-	cmd.Flags.Usage = func() {
-		fmt.Fprintln(cmd.Flags.Output(), DefaultUsage(cmd))
+	var opts ParseOptions
+	for _, option := range options {
+		if err := option(&opts); err != nil {
+			return err
+		}
 	}
 
-	if err := parse(cmd.Flags, args, options...); err != nil {
+	cmd.Flags.Usage = opts.usageFunc
+	if cmd.Flags.Usage == nil {
+		cmd.Flags.Usage = func() {
+			fmt.Fprintln(cmd.Flags.Output(), DefaultUsage(cmd))
+		}
+	}
+
+	if err := parse(cmd.Flags, args, opts); err != nil {
 		return fmt.Errorf("%s: %w", cmd.Name, err)
 	}
 
@@ -66,14 +85,7 @@ func (cmd *Command) Parse(args []string, options ...ParseOption) error {
 	return nil
 }
 
-func parse(fs *flag.FlagSet, args []string, options ...ParseOption) error {
-	var opts ParseOptions
-	for _, option := range options {
-		if err := option(&opts); err != nil {
-			return err
-		}
-	}
-
+func parse(fs *flag.FlagSet, args []string, opts ParseOptions) error {
 	provided := map[string]bool{}
 
 	// command-line flags first
