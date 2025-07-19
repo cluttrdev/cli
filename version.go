@@ -48,11 +48,17 @@ func NewBuildInfo(version string) *BuildInfo {
 }
 
 func (bi *BuildInfo) Version() string {
-	if bi.version != "" {
+	if bi.version != "" { // set explicitly
 		return bi.version
-    } else if v := bi.pseudoVersion(); v != "" {
-        return v
-    }
+	}
+
+	if v := bi.buildInfo.Main.Version; v != "" && v != "(devel)" { // set by `go build` command
+		return v
+	}
+
+	if v := bi.pseudoVersion(); v != "" { // pseudo version from commit
+		return v
+	}
 
 	return bi.buildInfo.Main.Version
 }
@@ -93,13 +99,13 @@ func (bi *BuildInfo) GoVersion() string {
 }
 
 func (bi *BuildInfo) pseudoVersion() string {
-    t, err := time.Parse(time.RFC3339, bi.Time())
-    if err != nil {
-        return ""
-    }
-    timestamp := t.Format("060102030405")
-    revision := bi.Revision()[:12]
-    return fmt.Sprintf("v0.0.0-%s-%s", timestamp, revision)
+	t, err := time.Parse(time.RFC3339, bi.Time())
+	if err != nil {
+		return ""
+	}
+	timestamp := t.Format("060102030405")
+	revision := bi.Revision()[:12]
+	return fmt.Sprintf("v0.0.0-%s-%s", timestamp, revision)
 }
 
 func DefaultVersionInfo() VersionInfo {
